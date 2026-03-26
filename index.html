@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Sistema de Créditos Pro Cloud</title>
+    <title>Gestión Pro Cloud</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -18,24 +18,14 @@
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         .card-premium { background: var(--card); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
-        .nav-active { color: var(--primary); position: relative; }
-        .nav-active::after { content: ''; position: absolute; bottom: -8px; width: 6px; height: 6px; background: var(--primary); border-radius: 50%; }
-
         input, select { background: #1f2937 !important; border: 1px solid #374151 !important; color: white !important; border-radius: 12px !important; padding: 12px !important; width: 100%; outline: none; font-size: 16px; }
         .btn-grad { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); transition: 0.3s; color: white; font-weight: bold; }
-        .btn-grad:active { transform: scale(0.95); }
 
-        /* TICKET IMPRESIÓN */
+        /* TICKET IMPRESIÓN - ARIAL BOLD */
         #ticket { 
-            display: none; 
-            width: 58mm; 
-            font-family: Arial, Helvetica, sans-serif !important; 
-            font-weight: bold !important; 
-            font-size: 11px; 
-            color: black; 
-            background: white; 
-            padding: 2mm; 
-            line-height: 1.4;
+            display: none; width: 58mm; font-family: Arial, Helvetica, sans-serif !important; 
+            font-weight: bold !important; font-size: 11px; color: black; background: white; 
+            padding: 2mm; line-height: 1.4;
         }
         .t-row { display: flex; justify-content: space-between; }
         .t-header { text-align: center; border-bottom: 1px dashed black; padding-bottom: 5px; margin-bottom: 5px; }
@@ -56,7 +46,7 @@
             <h1 id="app-title" class="text-xl font-black text-white italic uppercase tracking-tighter">GESTIÓN PRO</h1>
             <div class="flex items-center gap-2">
                 <span id="sync-indicator" class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
-                <p id="sync-text" class="text-[9px] text-slate-500 font-bold uppercase">Conectando...</p>
+                <p id="sync-text" class="text-[9px] text-slate-500 font-bold uppercase">Iniciando...</p>
             </div>
         </div>
         <button onclick="shareLink()" class="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
@@ -212,7 +202,6 @@
 
     </main>
 
-    <!-- NAVEGACIÓN -->
     <nav class="fixed bottom-0 left-0 right-0 h-20 bg-[#0b0f1a]/95 backdrop-blur-xl border-t border-white/5 flex justify-around items-center z-50">
         <button onclick="showView('view-home')" class="flex flex-col items-center gap-1 text-slate-500">
             <i class="fas fa-home text-lg"></i><span class="text-[9px] font-bold uppercase">Inicio</span>
@@ -231,7 +220,7 @@
     <div id="ticket"></div>
 
     <script>
-        // --- MOTOR DE SINCRONIZACIÓN MEJORADO ---
+        // --- SINCRONIZACIÓN MEJORADA ---
         let cloudID = new URLSearchParams(window.location.search).get('id');
         if (!cloudID) {
             cloudID = localStorage.getItem('pro_cloud_id') || 'p_' + Math.random().toString(36).substr(2, 9);
@@ -242,9 +231,8 @@
 
         let db = { 
             clientes: [], prestamos: [], pagos: [], historial: [], 
-            empresa: {nombre: 'PRESTAMOS PRO', tel: '000', dir: 'CIUDAD'}, 
-            resetTms: 0,
-            lastUpdated: 0 
+            empresa: {nombre: 'GESTIÓN PRO', tel: '000', dir: 'CIUDAD'}, 
+            resetTms: 0, lastUpdated: 0 
         };
 
         const kvUrl = `https://kvdb.io/4y6p7w2s8v9t6q5r4z/${cloudID}`;
@@ -260,16 +248,16 @@
             } catch (e) { setStatus('error'); }
         }
 
-        async function pullCloud() {
+        async function pullCloud(isInitial = false) {
             try {
                 const res = await fetch(kvUrl + '?cb=' + Date.now());
                 if (res.ok) {
                     const remote = await res.json();
-                    if(remote && remote.lastUpdated > db.lastUpdated) {
+                    // Lógica Crítica: Si es la primera vez o el remoto es más nuevo, descargar.
+                    if(remote && (isInitial || remote.lastUpdated > db.lastUpdated)) {
                         db = remote;
                         localStorage.setItem('db_loan_v3_' + cloudID, JSON.stringify(db));
                         updateUI();
-                        console.log("Sincronización: Nube descargada.");
                     }
                 }
                 setStatus('ok');
@@ -281,7 +269,7 @@
             const txt = document.getElementById('sync-text');
             if(s==='ok') { ind.className='w-2 h-2 rounded-full bg-emerald-500'; txt.innerText='En Línea'; }
             if(s==='syncing') { ind.className='w-2 h-2 rounded-full bg-orange-500 animate-pulse'; txt.innerText='Guardando...'; }
-            if(s==='error') { ind.className='w-2 h-2 rounded-full bg-red-500'; txt.innerText='Offline'; }
+            if(s==='error') { ind.className='w-2 h-2 rounded-full bg-red-500'; txt.innerText='Error Nube'; }
         }
 
         // --- LÓGICA DE NEGOCIO ---
@@ -301,16 +289,14 @@
 
         function saveCliente() {
             const nom = document.getElementById('cli-nombre').value.toUpperCase();
-            if(!nom) return Swal.fire("Error", "Nombre obligatorio", "error");
+            if(!nom) return;
             db.clientes.push({
                 id: Date.now(), nombre: nom,
                 cedula: document.getElementById('cli-cedula').value,
                 celular: document.getElementById('cli-celular').value,
                 direccion: document.getElementById('cli-direccion').value
             });
-            saveAll();
-            Swal.fire("Guardado", "", "success");
-            showView('view-home');
+            saveAll(); showView('view-home');
         }
 
         function renderClientes() {
@@ -318,15 +304,14 @@
             let h = '';
             db.clientes.filter(c => c.nombre.toLowerCase().includes(t)).forEach(c => {
                 h += `<div class="card-premium p-4 flex justify-between items-center">
-                    <div><p class="font-bold text-white text-xs italic uppercase">${c.nombre}</p><p class="text-[10px] text-slate-500">${c.celular}</p></div>
-                    <div class="flex gap-1">
-                        <button onclick="window.open('https://wa.me/57${c.celular}')" class="text-emerald-400 p-2"><i class="fab fa-whatsapp"></i></button>
+                    <div><p class="font-bold text-white text-xs uppercase italic">${c.nombre}</p></div>
+                    <div class="flex gap-2">
                         <button onclick="preEditCli(${c.id})" class="text-orange-400 p-2"><i class="fas fa-edit"></i></button>
                         <button onclick="delCli(${c.id})" class="text-red-500 p-2"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>`;
             });
-            document.getElementById('lista-clientes').innerHTML = h || '<p class="text-center text-slate-500 text-xs py-4">Sin clientes</p>';
+            document.getElementById('lista-clientes').innerHTML = h || '<p class="text-center py-4">Sin clientes</p>';
         }
 
         function preEditCli(id) {
@@ -348,14 +333,13 @@
                 celular: document.getElementById('edit-cli-celular').value,
                 direccion: document.getElementById('edit-cli-direccion').value
             };
-            saveAll();
-            showView('view-clientes');
+            saveAll(); showView('view-clientes');
         }
 
-        function delCli(id) { if(confirm("¿Borrar cliente?")) { db.clientes = db.clientes.filter(x => x.id !== id); saveAll(); renderClientes(); } }
+        function delCli(id) { if(confirm("¿Borrar?")) { db.clientes=db.clientes.filter(x=>x.id!==id); saveAll(); renderClientes(); } }
 
         function checkClientBeforeLoan() {
-            if(db.clientes.length === 0) return Swal.fire("Atención", "Registre un cliente primero", "warning");
+            if(db.clientes.length === 0) return Swal.fire("Atención", "Registre un cliente", "warning");
             showView('view-nuevo-prestamo');
             document.getElementById('res-inicio').innerText = hoy();
             document.getElementById('pre-cliente').innerHTML = db.clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
@@ -377,7 +361,7 @@
         function savePrestamo() {
             const cap = parseInt(document.getElementById('pre-capital').value);
             const cuo = parseInt(document.getElementById('pre-cuotas').value);
-            if(!cap || !cuo) return Swal.fire("Error", "Faltan datos", "error");
+            if(!cap || !cuo) return;
             const cli = db.clientes.find(c => c.id == document.getElementById('pre-cliente').value);
             const int = parseInt(document.getElementById('pre-interes').value) || 20;
             const total = Math.round(cap + (cap * int / 100));
@@ -388,11 +372,8 @@
                 fechaI: hoy(), capital: cap, interes: int, cuotas: cuo,
                 bono: vCuo, entregado: cap - vCuo, total: total, vCuota: vCuo, saldo: total
             };
-
             db.prestamos.push(p);
-            saveAll();
-            printLoan(p);
-            showView('view-home');
+            saveAll(); printLoan(p); showView('view-home');
         }
 
         function renderCartera() {
@@ -400,7 +381,7 @@
             db.prestamos.forEach(p => {
                 h += `<div class="card-premium p-4 space-y-3">
                     <div class="flex justify-between items-start">
-                        <div><p class="text-[10px] font-bold text-slate-500 uppercase">${p.clienteNombre}</p><p class="text-sm font-black text-indigo-400">Saldo: ${fmt(p.saldo)}</p></div>
+                        <div><p class="text-[10px] font-bold text-slate-500 uppercase">${p.clienteNombre}</p><p class="text-sm font-black text-indigo-400">${fmt(p.saldo)}</p></div>
                         <div class="text-right text-[10px] font-bold"><p>Cuota: ${fmt(p.vCuota)}</p></div>
                     </div>
                     <div class="flex gap-2">
@@ -409,7 +390,7 @@
                     </div>
                 </div>`;
             });
-            document.getElementById('lista-prestamos').innerHTML = h || '<p class="text-center text-slate-500 text-xs py-10">Vacío</p>';
+            document.getElementById('lista-prestamos').innerHTML = h || '<p class="text-center py-10 opacity-50">Vacío</p>';
         }
 
         function abonarDialog(id) {
@@ -431,14 +412,13 @@
         function processPago(p, monto) {
             if(monto > p.saldo) monto = p.saldo;
             p.saldo -= monto;
-            const pg = { id: Date.now(), tms: Date.now(), pId: p.id, cliente: p.clienteNombre, monto, saldoQueda: p.saldo, fecha: hoy() };
+            const pg = { id: Date.now(), pId: p.id, cliente: p.clienteNombre, monto, saldoQueda: p.saldo, fecha: hoy() };
             db.pagos.push(pg);
             if(p.saldo <= 0) {
                 db.historial.push({...p, fechaFin: hoy()});
                 db.prestamos = db.prestamos.filter(x => x.id !== p.id);
             }
-            saveAll();
-            printAbono(pg);
+            saveAll(); printAbono(pg);
         }
 
         function renderCobros() {
@@ -446,7 +426,6 @@
             let h = '';
             db.prestamos.forEach(p => {
                 const yaPago = db.pagos.some(pg => pg.pId === p.id && pg.fecha === hH);
-                // Cobro al día siguiente
                 if(p.saldo > 0 && hH > p.fechaI && !yaPago) {
                     h += `<div class="card-premium p-4 flex justify-between items-center border-l-4 border-emerald-500">
                         <div><p class="text-[10px] font-bold text-slate-500 uppercase">${p.clienteNombre}</p><p class="text-sm font-bold text-white">${fmt(p.vCuota)}</p></div>
@@ -459,42 +438,12 @@
         function processPagoDirecto(id) { const p = db.prestamos.find(x => x.id === id); processPago(p, p.vCuota); }
 
         function renderStats() {
-            const hH = hoy();
-            const r = db.resetTms || 0;
-            const pF = db.prestamos.concat(db.historial).filter(x => x.tms > r);
-            const pgF = db.pagos.filter(x => x.tms > r);
-            const dP = pF.filter(x => x.fechaI === hH).reduce((a,b) => a+b.capital, 0);
-            const dC = pgF.filter(x => x.fecha === hH).reduce((a,b) => a+b.monto, 0);
-            const dXC = db.prestamos.reduce((a,b) => a+b.saldo, 0);
-            document.getElementById('stats-dia').innerHTML = `<div class="flex justify-between"><span>Prestado:</span> <span>${fmt(dP)}</span></div><div class="flex justify-between text-emerald-400"><span>Cobrado Hoy:</span> <span>${fmt(dC)}</span></div><div class="flex justify-between text-pink-400"><span>Cartera:</span> <span>${fmt(dXC)}</span></div>`;
-            const aP = pF.reduce((a,b) => a+b.capital, 0);
-            const aC = pgF.reduce((a,b) => a+b.monto, 0);
-            document.getElementById('stats-general').innerHTML = `<div class="flex justify-between"><span>Total Prestado:</span> <span>${fmt(aP)}</span></div><div class="flex justify-between text-emerald-400"><span>Total Cobrado:</span> <span>${fmt(aC)}</span></div>`;
-        }
-
-        function resetStats() { if(confirm("¿Reiniciar estadísticas?")) { db.resetTms = Date.now(); saveAll(); } }
-
-        function renderHistorial() {
-            let h = '';
-            db.historial.forEach(hi => {
-                h += `<div class="card-premium p-4 flex justify-between items-center text-[10px]">
-                    <div><p class="font-bold text-white uppercase italic">${hi.clienteNombre}</p><p class="text-slate-500">Fin: ${hi.fechaFin}</p></div>
-                    <p class="font-bold text-indigo-400">${fmt(hi.total)}</p>
-                </div>`;
-            });
-            document.getElementById('lista-historial').innerHTML = h || '<p class="text-center text-slate-500 text-xs py-10">Vacío</p>';
-        }
-
-        function renderReimpresion() {
-            const hH = hoy();
-            let h = '';
-            db.prestamos.concat(db.historial).filter(p => p.fechaI === hH).forEach(p => {
-                h += `<button onclick='printLoan(${JSON.stringify(p)})' class="card-premium w-full p-4 text-[10px] text-left flex justify-between"><span>${p.clienteNombre}</span> <i class="fas fa-print"></i></button>`;
-            });
-            db.pagos.filter(pg => pg.fecha === hH).forEach(pg => {
-                h += `<button onclick='printAbono(${JSON.stringify(pg)})' class="card-premium w-full p-4 text-[10px] text-left flex justify-between border-l-4 border-emerald-500"><span>Abono: ${pg.cliente}</span> <i class="fas fa-print"></i></button>`;
-            });
-            document.getElementById('lista-reimpresion').innerHTML = h || '<p class="text-center text-slate-500 py-10">Sin movimientos hoy</p>';
+            const cobHoy = db.pagos.filter(x => x.fecha === hoy()).reduce((a,b) => a+b.monto, 0);
+            const carTotal = db.prestamos.reduce((a,b) => a+b.saldo, 0);
+            document.getElementById('stats-dia').innerHTML = `
+                <div class="flex justify-between"><span>Cobrado Hoy:</span> <span class="text-emerald-400">${fmt(cobHoy)}</span></div>
+                <div class="flex justify-between"><span>Cartera Actual:</span> <span class="text-pink-400">${fmt(carTotal)}</span></div>
+            `;
         }
 
         function printLoan(p) {
@@ -532,7 +481,7 @@
         function saveEmpresa() {
             db.empresa = {nombre: document.getElementById('emp-nombre').value.toUpperCase(), tel: document.getElementById('emp-tel').value, dir: document.getElementById('emp-dir').value.toUpperCase()};
             saveAll();
-            Swal.fire("Éxito", "Datos actualizados", "success");
+            Swal.fire("Éxito", "Actualizado", "success");
         }
 
         function updateUI() {
@@ -548,15 +497,16 @@
             Swal.fire("Link Copiado", "Pégalo en el otro celular para sincronizar.", "success");
         }
 
-        function delPre(id) { if(confirm("¿Eliminar?")) { db.prestamos = db.prestamos.filter(x=>x.id!==id); saveAll(); renderCartera(); } }
-        function clearHistorial() { if(confirm("¿Borrar historial?")) { db.historial = []; saveAll(); renderHistorial(); } }
+        function delPre(id) { if(confirm("¿Eliminar?")) { db.prestamos=db.prestamos.filter(x=>x.id!==id); saveAll(); renderCartera(); } }
+        function resetStats() { if(confirm("¿Reiniciar?")) { db.pagos=[]; saveAll(); showView('view-home'); } }
 
-        // --- INICIO APP ---
+        // --- INICIO ---
         async function init() {
             const local = localStorage.getItem('db_loan_v3_' + cloudID);
             if(local) { db = JSON.parse(local); updateUI(); }
-            await pullCloud(); // Forzar descarga al inicio
-            setInterval(pullCloud, 7000); // Revisar cada 7 seg
+            // Al arrancar, intentar descargar siempre por si hay algo nuevo
+            await pullCloud(true); 
+            setInterval(pullCloud, 7000);
         }
         init();
     </script>
