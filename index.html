@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Sistema de Créditos Pro Cloud</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        :root { --primary: #bb86fc; --accent: #03dac6; --bg: #0b0f1a; --card: #161d2f; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg); color: #e2e8f0; margin: 0; padding: 0; }
+        
+        .view { display: none; animation: fadeIn 0.3s ease; }
+        .view.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .card-premium { background: var(--card); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .nav-active { color: var(--primary); position: relative; }
+        .nav-active::after { content: ''; position: absolute; bottom: -8px; width: 6px; height: 6px; background: var(--primary); border-radius: 50%; }
+
+        input, select { background: #1f2937 !important; border: 1px solid #374151 !important; color: white !important; border-radius: 12px !important; padding: 12px !important; width: 100%; outline: none; font-size: 16px; }
+        .btn-grad { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); transition: 0.3s; color: white; font-weight: bold; }
+        .btn-grad:active { transform: scale(0.95); }
+
+        /* TICKET IMPRESIÓN */
+        #ticket { 
+            display: none; 
+            width: 58mm; 
+            font-family: Arial, Helvetica, sans-serif !important; 
+            font-weight: bold !important; 
+            font-size: 11px; 
+            color: black; 
+            background: white; 
+            padding: 2mm; 
+            line-height: 1.4;
+        }
+        .t-row { display: flex; justify-content: space-between; }
+        .t-header { text-align: center; border-bottom: 1px dashed black; padding-bottom: 5px; margin-bottom: 5px; }
+        .t-footer { text-align: center; border-top: 1px dashed black; padding-top: 5px; margin-top: 5px; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #ticket, #ticket * { visibility: visible; font-family: Arial !important; font-weight: bold !important; }
+            #ticket { position: absolute; left: 0; top: 0; display: block !important; width: 58mm; }
+        }
+    </style>
+</head>
+<body class="pb-24">
+
+    <!-- HEADER -->
+    <header class="p-5 flex justify-between items-center sticky top-0 bg-[#0b0f1a]/90 backdrop-blur-md z-50 border-b border-white/5">
+        <div>
+            <h1 id="app-title" class="text-xl font-black text-white italic uppercase tracking-tighter">GESTIÓN PRO</h1>
+            <div class="flex items-center gap-2">
+                <span id="sync-indicator" class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+                <p id="sync-text" class="text-[9px] text-slate-500 font-bold uppercase">Conectando...</p>
+            </div>
+        </div>
+        <button onclick="shareLink()" class="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+            <i class="fas fa-share-nodes"></i>
+        </button>
+    </header>
+
+    <main class="px-4 mt-4 space-y-6">
+
+        <!-- 0. HOME MENU (8 BOTONES) -->
+        <div id="view-home" class="view active">
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="showView('view-nuevo-cliente')" class="card-premium p-6 flex flex-col items-center gap-2">
+                    <i class="fas fa-user-plus text-indigo-400 text-2xl"></i>
+                    <span class="text-[10px] font-bold uppercase">Nuevo Cliente</span>
+                </button>
+                <button onclick="checkClientBeforeLoan()" class="card-premium p-6 flex flex-col items-center gap-2">
+                    <i class="fas fa-hand-holding-dollar text-purple-400 text-2xl"></i>
+                    <span class="text-[10px] font-bold uppercase">Nuevo Préstamo</span>
+                </button>
+                <button onclick="showView('view-cobros')" class="card-premium p-6 flex flex-col items-center gap-2">
+                    <i class="fas fa-calendar-check text-emerald-400 text-2xl"></i>
+                    <span class="text-[10px] font-bold uppercase">Cobros Hoy</span>
+                </button>
+                <button onclick="showView('view-clientes')" class="card-premium p-6 flex flex-col items-center gap-2">
+                    <i class="fas fa-users text-blue-400 text-2xl"></i>
+                    <span class="text-[10px] font-bold uppercase">Clientes</span>
+                </button>
+                <button onclick="showView('view-cartera')" class="card-premium p-6 flex flex-col items-center gap-2">
+                    <i class="fas fa-receipt text-amber-400 text-2xl"></i>
+                    <span class="text-[10px] font-bold uppercase">Cartera</span>
+                </button>
+                <button onclick="showView('view-stats')" class="card-premium p-6 flex flex-col items-center gap-2">
+                    <i class="fas fa-chart-pie text-pink-400 text-2xl"></i>
+                    <span class="text-[10px] font-bold uppercase">Estadísticas</span>
+                </button>
+                <button onclick="showView('view-reimpresion')" class="card-premium p-6 flex flex-col items-center gap-2">
+                    <i class="fas fa-print text-slate-400 text-2xl"></i>
+                    <span class="text-[10px] font-bold uppercase">Reimpresión</span>
+                </button>
+                <button onclick="showView('view-historial')" class="card-premium p-6 flex flex-col items-center gap-2">
+                    <i class="fas fa-history text-orange-400 text-2xl"></i>
+                    <span class="text-[10px] font-bold uppercase">Historial</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 1. NUEVO CLIENTE -->
+        <div id="view-nuevo-cliente" class="view">
+            <div class="card-premium p-6 space-y-4">
+                <h2 class="text-lg font-black italic text-indigo-400 uppercase">Registro de Cliente</h2>
+                <input type="text" id="cli-nombre" placeholder="Nombres Completos">
+                <input type="number" id="cli-cedula" placeholder="Cédula">
+                <input type="tel" id="cli-celular" placeholder="Celular">
+                <input type="text" id="cli-direccion" placeholder="Dirección">
+                <button onclick="saveCliente()" class="btn-grad w-full py-4 rounded-xl">GUARDAR CLIENTE</button>
+                <button onclick="showView('view-home')" class="w-full text-slate-500 text-xs font-bold uppercase">Volver</button>
+            </div>
+        </div>
+
+        <!-- 1.1 EDITAR CLIENTE -->
+        <div id="view-edit-cliente" class="view">
+            <div class="card-premium p-6 space-y-4">
+                <h2 class="text-lg font-black italic text-orange-400 uppercase">Actualizar Cliente</h2>
+                <input type="hidden" id="edit-cli-id">
+                <input type="text" id="edit-cli-nombre" placeholder="Nombres Completos">
+                <input type="number" id="edit-cli-cedula" placeholder="Cédula">
+                <input type="tel" id="edit-cli-celular" placeholder="Celular">
+                <input type="text" id="edit-cli-direccion" placeholder="Dirección">
+                <button onclick="updateCliente()" class="btn-grad w-full py-4 rounded-xl">ACTUALIZAR DATOS</button>
+                <button onclick="showView('view-clientes')" class="w-full text-slate-500 text-xs font-bold uppercase">Cancelar</button>
+            </div>
+        </div>
+
+        <!-- 2. LISTA CLIENTES -->
+        <div id="view-clientes" class="view space-y-4">
+            <input type="text" id="search-cli" oninput="renderClientes()" placeholder="Buscar por nombre...">
+            <div id="lista-clientes" class="space-y-3"></div>
+        </div>
+
+        <!-- 3. NUEVO PRÉSTAMO -->
+        <div id="view-nuevo-prestamo" class="view">
+            <div class="card-premium p-6 space-y-4">
+                <h2 class="text-lg font-black italic text-purple-400 uppercase">Crear Préstamo</h2>
+                <select id="pre-cliente"></select>
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="number" id="pre-capital" oninput="calcular()" placeholder="Capital $">
+                    <input type="number" id="pre-interes" oninput="calcular()" value="20" placeholder="Interés %">
+                </div>
+                <input type="number" id="pre-cuotas" oninput="calcular()" placeholder="N. de Cuotas">
+                
+                <div class="p-4 bg-black/40 rounded-2xl border border-white/5 space-y-2 text-[11px] font-bold">
+                    <div class="flex justify-between"><span>FECHA INICIO:</span> <span id="res-inicio"></span></div>
+                    <div class="flex justify-between"><span>BONO RIFA:</span> <span id="res-bono" class="text-indigo-400">$ 0</span></div>
+                    <div class="flex justify-between"><span>ENTREGADO:</span> <span id="res-entregado" class="text-emerald-400">$ 0</span></div>
+                    <div class="flex justify-between text-white"><span>CUOTA:</span> <span id="res-cuota">$ 0</span></div>
+                    <div class="flex justify-between text-sm text-indigo-400 pt-1 border-t border-white/10"><span>TOTAL:</span> <span id="res-total">$ 0</span></div>
+                </div>
+                <button onclick="savePrestamo()" class="btn-grad w-full py-4 rounded-xl">GUARDAR E IMPRIMIR</button>
+            </div>
+        </div>
+
+        <!-- 4. CARTERA -->
+        <div id="view-cartera" class="view space-y-4">
+            <h2 class="text-lg font-black italic uppercase ml-2">Préstamos Activos</h2>
+            <div id="lista-prestamos" class="space-y-4"></div>
+        </div>
+
+        <!-- 5. COBROS HOY -->
+        <div id="view-cobros" class="view space-y-4">
+            <h2 class="text-lg font-black italic uppercase ml-2">Cobros del Día</h2>
+            <div id="lista-cobros" class="space-y-3"></div>
+        </div>
+
+        <!-- 6. ESTADÍSTICAS -->
+        <div id="view-stats" class="view space-y-6">
+            <div class="card-premium p-6">
+                <h4 class="text-indigo-400 font-bold text-xs uppercase mb-3">Hoy</h4>
+                <div id="stats-dia" class="space-y-2 text-sm font-bold"></div>
+            </div>
+            <div class="card-premium p-6">
+                <h4 class="text-purple-400 font-bold text-xs uppercase mb-3">Totales</h4>
+                <div id="stats-general" class="space-y-2 text-sm font-bold"></div>
+            </div>
+            <button onclick="resetStats()" class="w-full text-red-500 text-[10px] font-black uppercase">Reiniciar Estadísticas</button>
+        </div>
+
+        <!-- 7. REIMPRESIÓN -->
+        <div id="view-reimpresion" class="view space-y-4">
+            <h2 class="text-lg font-black italic ml-2 uppercase">Recibos de Hoy</h2>
+            <div id="lista-reimpresion" class="space-y-3"></div>
+        </div>
+
+        <!-- 8. EMPRESA -->
+        <div id="view-config" class="view">
+            <div class="card-premium p-6 space-y-4">
+                <h2 class="text-lg font-black italic text-indigo-400 uppercase tracking-tighter">Datos Empresa</h2>
+                <input type="text" id="emp-nombre" placeholder="Nombre Empresa">
+                <input type="text" id="emp-tel" placeholder="Teléfono">
+                <input type="text" id="emp-dir" placeholder="Dirección">
+                <button onclick="saveEmpresa()" class="btn-grad w-full py-4 rounded-xl">ACTUALIZAR EMPRESA</button>
+            </div>
+        </div>
+
+        <!-- 9. HISTORIAL -->
+        <div id="view-historial" class="view space-y-4">
+            <div class="flex justify-between items-center px-2">
+                <h2 class="text-lg font-black italic uppercase">Finalizados</h2>
+                <button onclick="clearHistorial()" class="text-red-500 text-[10px] font-bold">BORRAR</button>
+            </div>
+            <div id="lista-historial" class="space-y-3"></div>
+        </div>
+
+    </main>
+
+    <!-- NAVEGACIÓN -->
+    <nav class="fixed bottom-0 left-0 right-0 h-20 bg-[#0b0f1a]/95 backdrop-blur-xl border-t border-white/5 flex justify-around items-center z-50">
+        <button onclick="showView('view-home')" class="flex flex-col items-center gap-1 text-slate-500">
+            <i class="fas fa-home text-lg"></i><span class="text-[9px] font-bold uppercase">Inicio</span>
+        </button>
+        <button onclick="showView('view-cartera')" class="flex flex-col items-center gap-1 text-slate-500">
+            <i class="fas fa-receipt text-lg"></i><span class="text-[9px] font-bold uppercase">Cartera</span>
+        </button>
+        <button onclick="showView('view-cobros')" class="flex flex-col items-center gap-1 text-slate-500">
+            <i class="fas fa-calendar-check text-lg"></i><span class="text-[9px] font-bold uppercase">Cobros</span>
+        </button>
+        <button onclick="showView('view-config')" class="flex flex-col items-center gap-1 text-slate-500">
+            <i class="fas fa-building text-lg"></i><span class="text-[9px] font-bold uppercase">Empresa</span>
+        </button>
+    </nav>
+
+    <div id="ticket"></div>
+
+    <script>
+        // --- MOTOR DE SINCRONIZACIÓN MEJORADO ---
+        let cloudID = new URLSearchParams(window.location.search).get('id');
+        if (!cloudID) {
+            cloudID = localStorage.getItem('pro_cloud_id') || 'p_' + Math.random().toString(36).substr(2, 9);
+            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?id=' + cloudID;
+            window.history.replaceState({path:newUrl}, '', newUrl);
+        }
+        localStorage.setItem('pro_cloud_id', cloudID);
+
+        let db = { 
+            clientes: [], prestamos: [], pagos: [], historial: [], 
+            empresa: {nombre: 'PRESTAMOS PRO', tel: '000', dir: 'CIUDAD'}, 
+            resetTms: 0,
+            lastUpdated: 0 
+        };
+
+        const kvUrl = `https://kvdb.io/4y6p7w2s8v9t6q5r4z/${cloudID}`;
+
+        async function saveAll() {
+            db.lastUpdated = Date.now();
+            localStorage.setItem('db_loan_v3_' + cloudID, JSON.stringify(db));
+            updateUI();
+            setStatus('syncing');
+            try {
+                await fetch(kvUrl, { method: 'POST', body: JSON.stringify(db) });
+                setStatus('ok');
+            } catch (e) { setStatus('error'); }
+        }
+
+        async function pullCloud() {
+            try {
+                const res = await fetch(kvUrl + '?cb=' + Date.now());
+                if (res.ok) {
+                    const remote = await res.json();
+                    if(remote && remote.lastUpdated > db.lastUpdated) {
+                        db = remote;
+                        localStorage.setItem('db_loan_v3_' + cloudID, JSON.stringify(db));
+                        updateUI();
+                        console.log("Sincronización: Nube descargada.");
+                    }
+                }
+                setStatus('ok');
+            } catch (e) { setStatus('error'); }
+        }
+
+        function setStatus(s) {
+            const ind = document.getElementById('sync-indicator');
+            const txt = document.getElementById('sync-text');
+            if(s==='ok') { ind.className='w-2 h-2 rounded-full bg-emerald-500'; txt.innerText='En Línea'; }
+            if(s==='syncing') { ind.className='w-2 h-2 rounded-full bg-orange-500 animate-pulse'; txt.innerText='Guardando...'; }
+            if(s==='error') { ind.className='w-2 h-2 rounded-full bg-red-500'; txt.innerText='Offline'; }
+        }
+
+        // --- LÓGICA DE NEGOCIO ---
+        const fmt = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+        const hoy = () => new Date().toISOString().split('T')[0];
+
+        function showView(id) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(id === 'view-clientes') renderClientes();
+            if(id === 'view-cartera') renderCartera();
+            if(id === 'view-cobros') renderCobros();
+            if(id === 'view-stats') renderStats();
+            if(id === 'view-reimpresion') renderReimpresion();
+            if(id === 'view-historial') renderHistorial();
+        }
+
+        function saveCliente() {
+            const nom = document.getElementById('cli-nombre').value.toUpperCase();
+            if(!nom) return Swal.fire("Error", "Nombre obligatorio", "error");
+            db.clientes.push({
+                id: Date.now(), nombre: nom,
+                cedula: document.getElementById('cli-cedula').value,
+                celular: document.getElementById('cli-celular').value,
+                direccion: document.getElementById('cli-direccion').value
+            });
+            saveAll();
+            Swal.fire("Guardado", "", "success");
+            showView('view-home');
+        }
+
+        function renderClientes() {
+            const t = document.getElementById('search-cli').value.toLowerCase();
+            let h = '';
+            db.clientes.filter(c => c.nombre.toLowerCase().includes(t)).forEach(c => {
+                h += `<div class="card-premium p-4 flex justify-between items-center">
+                    <div><p class="font-bold text-white text-xs italic uppercase">${c.nombre}</p><p class="text-[10px] text-slate-500">${c.celular}</p></div>
+                    <div class="flex gap-1">
+                        <button onclick="window.open('https://wa.me/57${c.celular}')" class="text-emerald-400 p-2"><i class="fab fa-whatsapp"></i></button>
+                        <button onclick="preEditCli(${c.id})" class="text-orange-400 p-2"><i class="fas fa-edit"></i></button>
+                        <button onclick="delCli(${c.id})" class="text-red-500 p-2"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('lista-clientes').innerHTML = h || '<p class="text-center text-slate-500 text-xs py-4">Sin clientes</p>';
+        }
+
+        function preEditCli(id) {
+            const c = db.clientes.find(x => x.id === id);
+            document.getElementById('edit-cli-id').value = c.id;
+            document.getElementById('edit-cli-nombre').value = c.nombre;
+            document.getElementById('edit-cli-cedula').value = c.cedula;
+            document.getElementById('edit-cli-celular').value = c.celular;
+            document.getElementById('edit-cli-direccion').value = c.direccion;
+            showView('view-edit-cliente');
+        }
+
+        function updateCliente() {
+            const id = parseInt(document.getElementById('edit-cli-id').value);
+            const i = db.clientes.findIndex(x => x.id === id);
+            db.clientes[i] = {
+                id, nombre: document.getElementById('edit-cli-nombre').value.toUpperCase(),
+                cedula: document.getElementById('edit-cli-cedula').value,
+                celular: document.getElementById('edit-cli-celular').value,
+                direccion: document.getElementById('edit-cli-direccion').value
+            };
+            saveAll();
+            showView('view-clientes');
+        }
+
+        function delCli(id) { if(confirm("¿Borrar cliente?")) { db.clientes = db.clientes.filter(x => x.id !== id); saveAll(); renderClientes(); } }
+
+        function checkClientBeforeLoan() {
+            if(db.clientes.length === 0) return Swal.fire("Atención", "Registre un cliente primero", "warning");
+            showView('view-nuevo-prestamo');
+            document.getElementById('res-inicio').innerText = hoy();
+            document.getElementById('pre-cliente').innerHTML = db.clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+            calcular();
+        }
+
+        function calcular() {
+            const cap = parseInt(document.getElementById('pre-capital').value) || 0;
+            const int = parseInt(document.getElementById('pre-interes').value) || 20;
+            const cuo = parseInt(document.getElementById('pre-cuotas').value) || 0;
+            const total = Math.round(cap + (cap * int / 100));
+            const vCuo = cuo > 0 ? Math.round(total / cuo) : 0;
+            document.getElementById('res-total').innerText = fmt(total);
+            document.getElementById('res-cuota').innerText = fmt(vCuo);
+            document.getElementById('res-bono').innerText = fmt(vCuo);
+            document.getElementById('res-entregado').innerText = fmt(cap - vCuo);
+        }
+
+        function savePrestamo() {
+            const cap = parseInt(document.getElementById('pre-capital').value);
+            const cuo = parseInt(document.getElementById('pre-cuotas').value);
+            if(!cap || !cuo) return Swal.fire("Error", "Faltan datos", "error");
+            const cli = db.clientes.find(c => c.id == document.getElementById('pre-cliente').value);
+            const int = parseInt(document.getElementById('pre-interes').value) || 20;
+            const total = Math.round(cap + (cap * int / 100));
+            const vCuo = Math.round(total / cuo);
+
+            const p = {
+                id: Date.now(), tms: Date.now(), clienteNombre: cli.nombre,
+                fechaI: hoy(), capital: cap, interes: int, cuotas: cuo,
+                bono: vCuo, entregado: cap - vCuo, total: total, vCuota: vCuo, saldo: total
+            };
+
+            db.prestamos.push(p);
+            saveAll();
+            printLoan(p);
+            showView('view-home');
+        }
+
+        function renderCartera() {
+            let h = '';
+            db.prestamos.forEach(p => {
+                h += `<div class="card-premium p-4 space-y-3">
+                    <div class="flex justify-between items-start">
+                        <div><p class="text-[10px] font-bold text-slate-500 uppercase">${p.clienteNombre}</p><p class="text-sm font-black text-indigo-400">Saldo: ${fmt(p.saldo)}</p></div>
+                        <div class="text-right text-[10px] font-bold"><p>Cuota: ${fmt(p.vCuota)}</p></div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="abonarDialog(${p.id})" class="flex-1 bg-indigo-600 py-2 rounded-xl text-xs font-black uppercase italic">Abonar</button>
+                        <button onclick="delPre(${p.id})" class="text-red-500 px-3"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('lista-prestamos').innerHTML = h || '<p class="text-center text-slate-500 text-xs py-10">Vacío</p>';
+        }
+
+        function abonarDialog(id) {
+            const p = db.prestamos.find(x => x.id === id);
+            Swal.fire({
+                title: 'Abonar a ' + p.clienteNombre,
+                input: 'select',
+                inputOptions: { '1': 'Cuota Diaria', '2': 'Liquidar Total', '3': 'Otro Valor' },
+                showCancelButton: true
+            }).then(r => {
+                if(r.value === '1') processPago(p, p.vCuota);
+                else if(r.value === '2') processPago(p, p.saldo);
+                else if(r.value === '3') {
+                    Swal.fire({ title: 'Valor:', input: 'number' }).then(v => { if(v.value) processPago(p, parseInt(v.value)) });
+                }
+            });
+        }
+
+        function processPago(p, monto) {
+            if(monto > p.saldo) monto = p.saldo;
+            p.saldo -= monto;
+            const pg = { id: Date.now(), tms: Date.now(), pId: p.id, cliente: p.clienteNombre, monto, saldoQueda: p.saldo, fecha: hoy() };
+            db.pagos.push(pg);
+            if(p.saldo <= 0) {
+                db.historial.push({...p, fechaFin: hoy()});
+                db.prestamos = db.prestamos.filter(x => x.id !== p.id);
+            }
+            saveAll();
+            printAbono(pg);
+        }
+
+        function renderCobros() {
+            const hH = hoy();
+            let h = '';
+            db.prestamos.forEach(p => {
+                const yaPago = db.pagos.some(pg => pg.pId === p.id && pg.fecha === hH);
+                // Cobro al día siguiente
+                if(p.saldo > 0 && hH > p.fechaI && !yaPago) {
+                    h += `<div class="card-premium p-4 flex justify-between items-center border-l-4 border-emerald-500">
+                        <div><p class="text-[10px] font-bold text-slate-500 uppercase">${p.clienteNombre}</p><p class="text-sm font-bold text-white">${fmt(p.vCuota)}</p></div>
+                        <button onclick="processPagoDirecto(${p.id})" class="bg-emerald-600 px-4 py-2 rounded-xl text-xs font-black uppercase">Cobrar</button>
+                    </div>`;
+                }
+            });
+            document.getElementById('lista-cobros').innerHTML = h || '<p class="text-center text-emerald-500 font-bold py-10">¡Todo Cobrado!</p>';
+        }
+        function processPagoDirecto(id) { const p = db.prestamos.find(x => x.id === id); processPago(p, p.vCuota); }
+
+        function renderStats() {
+            const hH = hoy();
+            const r = db.resetTms || 0;
+            const pF = db.prestamos.concat(db.historial).filter(x => x.tms > r);
+            const pgF = db.pagos.filter(x => x.tms > r);
+            const dP = pF.filter(x => x.fechaI === hH).reduce((a,b) => a+b.capital, 0);
+            const dC = pgF.filter(x => x.fecha === hH).reduce((a,b) => a+b.monto, 0);
+            const dXC = db.prestamos.reduce((a,b) => a+b.saldo, 0);
+            document.getElementById('stats-dia').innerHTML = `<div class="flex justify-between"><span>Prestado:</span> <span>${fmt(dP)}</span></div><div class="flex justify-between text-emerald-400"><span>Cobrado Hoy:</span> <span>${fmt(dC)}</span></div><div class="flex justify-between text-pink-400"><span>Cartera:</span> <span>${fmt(dXC)}</span></div>`;
+            const aP = pF.reduce((a,b) => a+b.capital, 0);
+            const aC = pgF.reduce((a,b) => a+b.monto, 0);
+            document.getElementById('stats-general').innerHTML = `<div class="flex justify-between"><span>Total Prestado:</span> <span>${fmt(aP)}</span></div><div class="flex justify-between text-emerald-400"><span>Total Cobrado:</span> <span>${fmt(aC)}</span></div>`;
+        }
+
+        function resetStats() { if(confirm("¿Reiniciar estadísticas?")) { db.resetTms = Date.now(); saveAll(); } }
+
+        function renderHistorial() {
+            let h = '';
+            db.historial.forEach(hi => {
+                h += `<div class="card-premium p-4 flex justify-between items-center text-[10px]">
+                    <div><p class="font-bold text-white uppercase italic">${hi.clienteNombre}</p><p class="text-slate-500">Fin: ${hi.fechaFin}</p></div>
+                    <p class="font-bold text-indigo-400">${fmt(hi.total)}</p>
+                </div>`;
+            });
+            document.getElementById('lista-historial').innerHTML = h || '<p class="text-center text-slate-500 text-xs py-10">Vacío</p>';
+        }
+
+        function renderReimpresion() {
+            const hH = hoy();
+            let h = '';
+            db.prestamos.concat(db.historial).filter(p => p.fechaI === hH).forEach(p => {
+                h += `<button onclick='printLoan(${JSON.stringify(p)})' class="card-premium w-full p-4 text-[10px] text-left flex justify-between"><span>${p.clienteNombre}</span> <i class="fas fa-print"></i></button>`;
+            });
+            db.pagos.filter(pg => pg.fecha === hH).forEach(pg => {
+                h += `<button onclick='printAbono(${JSON.stringify(pg)})' class="card-premium w-full p-4 text-[10px] text-left flex justify-between border-l-4 border-emerald-500"><span>Abono: ${pg.cliente}</span> <i class="fas fa-print"></i></button>`;
+            });
+            document.getElementById('lista-reimpresion').innerHTML = h || '<p class="text-center text-slate-500 py-10">Sin movimientos hoy</p>';
+        }
+
+        function printLoan(p) {
+            document.getElementById('ticket').innerHTML = `
+                <div class="t-header"><span style="font-size:13px">${db.empresa.nombre}</span><br>${db.empresa.dir}<br>TEL: ${db.empresa.tel}</div>
+                <div class="t-row"><span>FECHA:</span> <span>${p.fechaI}</span></div>
+                <div class="t-row"><span>CLIENTE:</span> <span>${p.clienteNombre}</span></div>
+                <div style="border-bottom:1px dashed black; margin:5px 0"></div>
+                <div class="t-row"><span>CAPITAL:</span> <span>${fmt(p.capital)}</span></div>
+                <div class="t-row"><span>INTERES:</span> <span>${p.interes}%</span></div>
+                <div class="t-row"><span>CUOTAS:</span> <span>${p.cuotas}</span></div>
+                <div class="t-row"><span>BONO RIFA:</span> <span>${fmt(p.bono)}</span></div>
+                <div class="t-row"><span>ENTREGADO:</span> <span>${fmt(p.entregado)}</span></div>
+                <div style="border-bottom:1px dashed black; margin:5px 0"></div>
+                <div class="t-row" style="font-size:12px"><span>TOTAL:</span> <span>${fmt(p.total)}</span></div>
+                <div class="t-row" style="font-size:12px"><span>VALOR CUOTA:</span> <span>${fmt(p.vCuota)}</span></div>
+                <div class="t-footer">GRACIAS POR SU PAGO</div>
+            `;
+            setTimeout(() => window.print(), 300);
+        }
+
+        function printAbono(a) {
+            document.getElementById('ticket').innerHTML = `
+                <div class="t-header"><span style="font-size:13px">${db.empresa.nombre}</span><br>RECIBO DE ABONO</div>
+                <div class="t-row"><span>FECHA:</span> <span>${a.fecha}</span></div>
+                <div class="t-row"><span>CLIENTE:</span> <span>${a.cliente}</span></div>
+                <div style="border-bottom:1px dashed black; margin:5px 0"></div>
+                <div class="t-row" style="font-size:12px"><span>ABONADO:</span> <span>${fmt(a.monto)}</span></div>
+                <div class="t-row" style="font-size:12px"><span>SALDO:</span> <span>${fmt(a.saldoQueda)}</span></div>
+                <div class="t-footer">COMPROBANTE DE PAGO</div>
+            `;
+            setTimeout(() => window.print(), 300);
+        }
+
+        function saveEmpresa() {
+            db.empresa = {nombre: document.getElementById('emp-nombre').value.toUpperCase(), tel: document.getElementById('emp-tel').value, dir: document.getElementById('emp-dir').value.toUpperCase()};
+            saveAll();
+            Swal.fire("Éxito", "Datos actualizados", "success");
+        }
+
+        function updateUI() {
+            document.getElementById('app-title').innerText = db.empresa.nombre;
+            document.getElementById('emp-nombre').value = db.empresa.nombre;
+            document.getElementById('emp-tel').value = db.empresa.tel;
+            document.getElementById('emp-dir').value = db.empresa.dir;
+        }
+
+        function shareLink() {
+            const url = window.location.href;
+            navigator.clipboard.writeText(url);
+            Swal.fire("Link Copiado", "Pégalo en el otro celular para sincronizar.", "success");
+        }
+
+        function delPre(id) { if(confirm("¿Eliminar?")) { db.prestamos = db.prestamos.filter(x=>x.id!==id); saveAll(); renderCartera(); } }
+        function clearHistorial() { if(confirm("¿Borrar historial?")) { db.historial = []; saveAll(); renderHistorial(); } }
+
+        // --- INICIO APP ---
+        async function init() {
+            const local = localStorage.getItem('db_loan_v3_' + cloudID);
+            if(local) { db = JSON.parse(local); updateUI(); }
+            await pullCloud(); // Forzar descarga al inicio
+            setInterval(pullCloud, 7000); // Revisar cada 7 seg
+        }
+        init();
+    </script>
+</body>
+</html>
